@@ -1,15 +1,48 @@
-# Mikrotik RouterOS in Docker
+# MikroTik RouterOS in Docker (Doprax)
 
+Ansible playbook to deploy [evilfreelancer/docker-routeros](https://github.com/EvilFreelancer/docker-routeros) on Ubuntu with Docker Compose.
 
-This project comprises a Docker image that runs a MikroTik's RouterOS virtual machine inside QEMU.
+Designed for development and testing (e.g. [routeros-api-php](https://github.com/EvilFreelancer/routeros-api-php)). For production-like RouterOS in Docker, see [vrnetlab](https://github.com/plajjan/vrnetlab).
 
-It's designed to simulate MikroTik's RouterOS environment, making it an excellent tool for development and testing purposes, especially for those working with the RouterOS API.
+**Repository:** https://github.com/dude-sr/mikrotik-for-doprax
 
-This Docker image is particularly useful for unit testing the routeros-api-php library, allowing developers to test applications in a controlled environment that closely mimics a real RouterOS setup.
+## Requirements
 
-For users seeking a fully operational RouterOS environment for production use within Docker, the VR Network Lab project is recommended as an alternative.
+- Ubuntu target host (amd64)
+- Ansible + `community.docker` collection on the control machine
+- `/dev/kvm` recommended (optional; playbook warns if missing)
 
-When deployed, just login with "admin" and no password, you will then be prompted to change the password.
+## Quick start
 
-credits to [EvilFreelancer](https://github.com/EvilFreelancer/docker-routeros)
+```bash
+ansible-galaxy collection install community.docker
 
+cat > hosts <<'EOF'
+YOUR_SERVER_IP ansible_user=root
+EOF
+
+ansible-playbook -i hosts playbook.yaml --ask-pass
+# use --ask-become-pass if sudo is required
+```
+
+## What the playbook does
+
+- Installs Docker CE and compose plugin
+- Installs Python `docker` SDK in a venv (Ubuntu 24.04 safe)
+- Deploys compose with **two Docker networks** (required for SSH/web from host — see upstream README)
+- Optionally passes `/dev/kvm` when present
+- Verifies container + SSH port, prints deployment summary
+
+## Access after deploy
+
+| Service | On server | Remote |
+|---------|-----------|--------|
+| SSH | `ssh -p 22222 admin@127.0.0.1` | `ssh -p 22222 admin@SERVER_IP` |
+| Web | http://127.0.0.1:7777 | http://SERVER_IP:7777 |
+| API | `127.0.0.1:8728` | `SERVER_IP:8728` |
+
+First login: user `admin`, empty password (set when prompted).
+
+## Credits
+
+- [EvilFreelancer/docker-routeros](https://github.com/EvilFreelancer/docker-routeros)
