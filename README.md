@@ -1,39 +1,19 @@
 # MikroTik RouterOS in Docker (Doprax)
 
-Ansible playbook to deploy [evilfreelancer/docker-routeros](https://github.com/EvilFreelancer/docker-routeros) on Ubuntu with Docker Compose.
+Doprax app for installing MikroTik RouterOS on **Ubuntu** using Docker.
 
-Designed for development and testing (e.g. [routeros-api-php](https://github.com/EvilFreelancer/routeros-api-php)). For production-like RouterOS in Docker, see [vrnetlab](https://github.com/plajjan/vrnetlab).
+It runs [evilfreelancer/docker-routeros](https://github.com/EvilFreelancer/docker-routeros) — a MikroTik CHR virtual machine inside QEMU/Docker — so you get a RouterOS environment on your server without bare-metal hardware.
+
+Useful for development and testing, especially with [routeros-api-php](https://github.com/EvilFreelancer/routeros-api-php), which talks to RouterOS over the API in a setup that closely matches a real device.
 
 **Repository:** https://github.com/dude-sr/mikrotik-for-doprax
 
 ## Requirements
 
-- Ubuntu target host (amd64)
-- Ansible + `community.docker` collection on the control machine
-- `/dev/kvm` recommended (optional; playbook warns if missing)
+- Ubuntu server (amd64)
+- `/dev/kvm` recommended for acceptable performance (optional; deploy continues without it, with a warning)
 
-## Quick start
-
-```bash
-ansible-galaxy collection install community.docker
-
-cat > hosts <<'EOF'
-YOUR_SERVER_IP ansible_user=root
-EOF
-
-ansible-playbook -i hosts playbook.yaml --ask-pass
-# use --ask-become-pass if sudo is required
-```
-
-## What the playbook does
-
-- Installs Docker CE and compose plugin
-- Installs Python `docker` SDK in a venv (Ubuntu 24.04 safe)
-- Deploys compose with **two Docker networks** (required for SSH/web from host — see upstream README)
-- Optionally passes `/dev/kvm` when present
-- Verifies container + SSH port, prints deployment summary
-
-## Access after deploy
+## Access after install
 
 | Service | On server | Remote |
 |---------|-----------|--------|
@@ -43,6 +23,7 @@ ansible-playbook -i hosts playbook.yaml --ask-pass
 
 First login: user `admin`, empty password (set when prompted).
 
-## Credits
+## Related projects
 
-- [EvilFreelancer/docker-routeros](https://github.com/EvilFreelancer/docker-routeros)
+- [evilfreelancer/docker-routeros](https://github.com/EvilFreelancer/docker-routeros) — RouterOS in Docker (QEMU)
+- [routeros-api-php](https://github.com/EvilFreelancer/routeros-api-php) — PHP client for the RouterOS API
