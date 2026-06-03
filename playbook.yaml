@@ -1,0 +1,126 @@
+
+---
+- name: Deploy MikroTik RouterOS with Docker Compose
+  hosts: all 
+  become: true
+  vars:
+    mikrotik_src: /root/mikrotik
+    mikrotik_venv: "{{ mikrotik_src }}/.venv"
+    compose_file: "{{ mikrotik_src }}/docker-compose.yml"
+    mikrotik_ssh_port: 22222
+    mikrotik_web_port: 7777
+    mikrotik_telnet_port: 22223
+    mikrotik_api_port: 8728
+
+  tasks:
+    - name: Install general prerequisites
+      apt:
+        name:
+          - apt-transport-https
+          - ca-certificates
+          - curl
+          - gnupg-agent
+          - software-properties-common
+          - python3
+          - python3-pip
+        update_cache: yes
+      when: ansible_facts.packages['docker-ce'] is not defined
+
+    - name: Add Docker’s official GPG key
+      apt_key:
+        url: https://download.docker.com/linux/ubuntu/gpg
+        state: present
+
+    - name: Add Docker repository
+      apt_repository:
+        repo: deb [arch=amd64] https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable
+        state: present
+
+    - name: Install Docker Engine
+      apt:
+        name:
+          - docker-ce
+          - docker-compose-plugin
+          - docker-buildx-plugin
+        update_cache: yes
+        state: latest
+
+    - name: Install Python venv support
+      apt:
+        name: python3-venv
+        state: present
+
+    - name: Create mikrotik folder
+      file:
+        path: "{{ mikrotik_src }}"
+        state: directory
+
+    - name: Install Docker SDK in Ansible venv
+      ansible.builtin.pip:
+        name:
+          - "docker==6.1.3"
+        state: present
+        virtualenv: "{{ mikrotik_venv }}"
+        virtualenv_command: python3 -m venv
+
+    - name: Ensure Docker service is started
+      systemd:
+        name: docker
+        state: started
+        enabled: yes
+
+    - name: Check if KVM device is available
+      ansible.builtin.stat:
+        path: /dev/kvm
+      register: mikrotik_kvm_stat
+
+    - name: Copy Docker Compose file
+      template:
+        src: ./templates/docker-compose.yml.j2
+        dest: "{{ compose_file }}"
+      vars:
+        mikrotik_use_kvm: "{{ mikrotik_kvm_stat.stat.exists }}"
+
+    - name: Pull latest images and bring up services
+      community.docker.docker_compose_v2:
+        project_src: "{{ compose_file | dirname }}"
+        pull: missing
+        recreate: auto
+      vars:
+        ansible_python_interpreter: "{{ mikrotik_venv }}/bin/python3"
+
+    - name: Check if MikroTik container is running
+      ansible.builtin.command:
+        cmd: docker compose ps --status running --services routeros-latest
+        chdir: "{{ mikrotik_src }}"
+      register: mikrotik_running_check
+      changed_when: false
+      failed_when: false
+
+    - name: Wait for MikroTik SSH port
+      ansible.builtin.wait_for:
+        host: 127.0.0.1
+        port: "{{ mikrotik_ssh_port }}"
+        delay: 20
+        timeout: 180
+      register: mikrotik_ssh_wait
+      failed_when: false
+
+    - name: Build MikroTik deployment summary facts
+      ansible.builtin.set_fact:
+        mikrotik_success: >-
+          {{
+            mikrotik_running_check.rc == 0
+            and 'routeros-latest' in mikrotik_running_check.stdout
+            and mikrotik_ssh_wait is succeeded
+          }}
+        mikrotik_warnings: >-
+          {{
+            (['KVM (/dev/kvm) is not available — RouterOS will run without hardware acceleration and may be very slow.']
+             if not mikrotik_kvm_stat.stat.exists else [])
+          }}
+
+    - name: Print MikroTik deployment summary
+      ansible.builtin.debug:
+        msg: "{{ lookup('template', 'deployment_summary.j2').splitlines() }}"
+

@@ -1,0 +1,42 @@
+{% set host_addr = ansible_host | default(inventory_hostname) %}
+{% set status_label = 'SUCCESS' if mikrotik_success | bool else 'FAILED' %}
+
++==============================================================================+
+|                    MikroTik RouterOS — Deployment Summary                    |
++==============================================================================+
+
+  Host ............ {{ inventory_hostname }} ({{ host_addr }})
+  Success ......... {{ mikrotik_success | bool }} ({{ status_label }})
+
+{% if mikrotik_warnings | length > 0 %}
+  Warnings:
+{% for warning in mikrotik_warnings %}
+    - {{ warning }}
+{% endfor %}
+{% else %}
+  Warnings ........ (none)
+{% endif %}
+
++------------------------------------------------------------------------------+
+|  Access (Markdown)                                                           |
++------------------------------------------------------------------------------+
+
+#### On the server
+
+| Service | Connection |
+|---------|------------|
+| SSH     | `ssh -p {{ mikrotik_ssh_port }} admin@127.0.0.1` |
+| Web UI  | http://127.0.0.1:{{ mikrotik_web_port }} |
+| Telnet  | `telnet 127.0.0.1 {{ mikrotik_telnet_port }}` |
+| API     | `127.0.0.1:{{ mikrotik_api_port }}` |
+
+#### Remote
+
+| Service | Connection |
+|---------|------------|
+| SSH     | `ssh -p {{ mikrotik_ssh_port }} admin@{{ host_addr }}` |
+| Web UI  | http://{{ host_addr }}:{{ mikrotik_web_port }} |
+
+> First login: user **admin**, empty password (you will be prompted to set one).
+
+> Open firewall ports **{{ mikrotik_ssh_port }}**, **{{ mikrotik_telnet_port }}**, **{{ mikrotik_web_port }}**, **{{ mikrotik_api_port }}** for external access.

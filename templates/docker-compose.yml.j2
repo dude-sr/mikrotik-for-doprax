@@ -1,0 +1,34 @@
+
+# Two networks required for host SSH/telnet/API — see EvilFreelancer/docker-routeros README "Networking modes"
+services:
+  routeros-latest:
+    image: evilfreelancer/docker-routeros:latest
+    restart: unless-stopped
+    cap_add:
+      - NET_ADMIN
+    volumes:
+      - routeros_data:/data
+    devices:
+      - /dev/net/tun
+{% if mikrotik_use_kvm | bool %}
+      - /dev/kvm
+{% endif %}
+    ports:
+      - "22222:22"
+      - "22223:23"
+      - "7777:80"
+      - "8728:8728"
+      - "8729:8729"
+      - "28728:8728"
+      - "28729:8729"
+    networks:
+      - default
+      - routeros_net
+
+networks:
+  routeros_net:
+    driver: bridge
+
+volumes:
+  routeros_data:
+    driver: local
